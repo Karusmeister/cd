@@ -1,0 +1,72 @@
+function [standardDP,hwDP,standardCVA,hwCVA] = cvaSimulation( PortfolioStruc, RecoveryRate, Spread, bFactor,graphSwitch )
+
+yearTime =  yearfrac(PortfolioStruc.StartPoint,PortfolioStruc.EndPoint);
+
+[~,cols] = size(PortfolioStruc.data);
+
+EEs = [];
+
+    for n=1:cols
+        products = PortfolioStruc.data{n};
+        e = calculateExpectedExposure(products);
+        EEs = [EEs ; e];
+    end
+    
+[~,ees] = size(EEs);
+
+dt = yearTime/ ees;
+
+tvals = [dt:dt:yearTime];  
+
+standardDP = standardDefaultProbabilities(RecoveryRate, Spread ,tvals );
+makePlot2(tvals, standardDP,'Default Probabilities implied by term structure','Time [Years]','Probability',graphSwitch,'stdDP');
+
+[rows,~] = size(standardDP);
+csum = [];
+for i=1:rows
+   csum = [csum ; cumsum(standardDP(i,:)) ];
+end
+makePlot2(tvals, standardDP,'Cumulative default probabilities implied by term structure','Time [Years]','Probability',graphSwitch,'CumStdDP');
+
+standardCVA = calculateCVA(EEs, RecoveryRate,standardDP);
+
+[rows,~] = size(standardCVA);
+csum = [];
+for i=1:rows
+   csum = [csum ; cumsum(standardCVA(i,:)) ];
+end
+
+makePlot2(tvals, csum,'Cumulative CVA, standard probabilities','Time [Years]',strcat('Value [',char(8364),']'),graphSwitch,'standardCVACumsum');
+
+makePlot2(tvals, cumsum(mean(standardCVA)),'Mean cumulative CVA, standard probabilities', ...
+    'Time [Years]',strcat('Value [',char(8364),']'),graphSwitch,'standardCVAMeanCumsum');
+
+%%% Hull White technique
+
+
+[h,hwDP] = HullWhiteDefaultProbabilities(EEs, tvals, bFactor, Spread, RecoveryRate);
+makePlot2(tvals, hwDP,'Default Probabilities calculate with Hull&White model','Time [Years]','Probability',graphSwitch,'hwDP');
+
+[rows,~] = size(hwDP);
+csum = [];
+for i=1:rows
+   csum = [csum ; cumsum(hwDP(i,:)) ];
+end
+makePlot2(tvals, csum,'Cumulative default probabilities implied by Hull and White model','Time [Years]','Probability',graphSwitch,'CumhwDP');
+
+hwCVA = calculateCVA(EEs, RecoveryRate,hwDP);
+[rows,~] = size(hwCVA);
+csum = [];
+for i=1:rows
+  csum = [csum ; cumsum(hwCVA(i,:)) ];
+end
+makePlot2(tvals, csum,'Cumulative CVA, Hull & White probabilities','Time [Years]', strcat('Value [',char(8364),']'),graphSwitch,'hwCVACumsum');
+
+
+makePlot2(tvals, cumsum(mean(hwCVA)),'Mean cumulative CVA, Hull & White probabilities', ...
+   'Time [Years]',strcat('Value [',char(8364),']'),graphSwitch,'hwCVAMeanCumsum');
+
+
+
+end
+
